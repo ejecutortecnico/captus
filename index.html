@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🌵 Sistema Profesional de Cultivo de Cactus</title>
+
+<style>
+body{
+    font-family: Arial, sans-serif;
+    margin:0;
+    background:linear-gradient(135deg,#1b4332,#2d6a4f);
+    color:white;
+}
+header{
+    text-align:center;
+    padding:20px;
+    background:#081c15;
+}
+.container{
+    max-width:1100px;
+    margin:auto;
+    padding:20px;
+}
+input, select, textarea{
+    width:100%;
+    padding:8px;
+    margin:5px 0;
+    border-radius:6px;
+    border:none;
+}
+button{
+    padding:8px 15px;
+    border:none;
+    border-radius:6px;
+    background:#95d5b2;
+    cursor:pointer;
+    margin:5px 0;
+}
+button:hover{
+    background:#74c69d;
+}
+.card{
+    background:rgba(255,255,255,0.1);
+    padding:15px;
+    margin:15px 0;
+    border-radius:10px;
+}
+.grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:15px;
+}
+img{
+    max-width:120px;
+    border-radius:8px;
+    margin-top:10px;
+}
+.dashboard{
+    display:flex;
+    justify-content:space-around;
+    flex-wrap:wrap;
+    margin-bottom:20px;
+}
+.stat{
+    background:rgba(255,255,255,0.2);
+    padding:15px;
+    border-radius:10px;
+    margin:5px;
+}
+small{color:#ccc}
+</style>
+</head>
+
+<body>
+
+<header>
+    <h1>🌵 Gestión Profesional de Cultivo de Cactus</h1>
+</header>
+
+<div class="container">
+
+<!-- DASHBOARD -->
+<div class="dashboard">
+    <div class="stat">Total Cactus: <span id="totalCactus">0</span></div>
+    <div class="stat">Promedio Altura: <span id="promedioAltura">0</span> cm</div>
+    <div class="stat">Último Evento: <span id="ultimoEvento">-</span></div>
+</div>
+
+<!-- FORMULARIO -->
+<div class="card">
+<h2>Registrar Nuevo Cactus</h2>
+<form id="formCactus">
+<div class="grid">
+<input type="text" id="nombre" placeholder="Nombre" required>
+<input type="text" id="especie" placeholder="Especie">
+<input type="date" id="fechaSiembra" required>
+<input type="number" id="altura" placeholder="Altura inicial (cm)">
+<select id="estado">
+<option value="Semilla">Semilla</option>
+<option value="Crecimiento">Crecimiento</option>
+<option value="Adulto">Adulto</option>
+<option value="Floración">Floración</option>
+</select>
+<input type="file" id="foto">
+</div>
+<textarea id="observaciones" placeholder="Observaciones"></textarea>
+<button type="submit">Guardar Cactus</button>
+</form>
+</div>
+
+<!-- FILTRO -->
+<div class="card">
+<h3>Filtrar por especie</h3>
+<input type="text" id="filtro" placeholder="Buscar especie...">
+</div>
+
+<!-- LISTADO -->
+<div id="lista"></div>
+
+<button onclick="exportarJSON()">Exportar Datos</button>
+
+</div>
+
+<script>
+let cactusDB = JSON.parse(localStorage.getItem("cactusPro")) || [];
+
+document.getElementById("formCactus").addEventListener("submit", function(e){
+    e.preventDefault();
+
+    const reader = new FileReader();
+    const file = document.getElementById("foto").files[0];
+
+    if(file){
+        reader.onload = function(){
+            guardarCactus(reader.result);
+        }
+        reader.readAsDataURL(file);
+    } else {
+        guardarCactus(null);
+    }
+});
+
+function guardarCactus(imagen){
+    const cactus = {
+        id: Date.now(),
+        nombre: nombre.value,
+        especie: especie.value,
+        fechaSiembra: fechaSiembra.value,
+        altura: parseFloat(altura.value) || 0,
+        estado: estado.value,
+        observaciones: observaciones.value,
+        imagen: imagen,
+        historial:[]
+    };
+
+    cactusDB.push(cactus);
+    actualizar();
+    formCactus.reset();
+}
+
+function actualizar(){
+    localStorage.setItem("cactusPro", JSON.stringify(cactusDB));
+    render();
+    actualizarDashboard();
+}
+
+function render(){
+    const filtro = document.getElementById("filtro").value.toLowerCase();
+    lista.innerHTML="";
+
+    cactusDB
+    .filter(c=>c.especie.toLowerCase().includes(filtro))
+    .forEach(cactus=>{
+        lista.innerHTML += `
+        <div class="card">
+            <h3>${cactus.nombre}</h3>
+            <p><strong>Especie:</strong> ${cactus.especie}</p>
+            <p><strong>Altura:</strong> ${cactus.altura} cm</p>
+            <p><strong>Estado:</strong> ${cactus.estado}</p>
+            <p><strong>Siembra:</strong> ${cactus.fechaSiembra}</p>
+            <small>${cactus.observaciones}</small>
+            ${cactus.imagen ? `<br><img src="${cactus.imagen}">` : ""}
+            <br>
+            <button onclick="agregarEvento(${cactus.id})">Agregar Evento</button>
+            <button onclick="eliminar(${cactus.id})">Eliminar</button>
+            <div>
+                <h4>Historial</h4>
+                ${cactus.historial.map(h=>`<p>📅 ${h.fecha} - ${h.tipo} - ${h.detalle}</p>`).join("")}
+            </div>
+        </div>
+        `;
+    });
+}
+
+function agregarEvento(id){
+    const tipo = prompt("Tipo de evento (Riego, Fertilización, Plaga, Trasplante, Medición)");
+    if(!tipo) return;
+    const detalle = prompt("Detalle del evento:");
+    if(!detalle) return;
+
+    const cactus = cactusDB.find(c=>c.id===id);
+
+    cactus.historial.push({
+        fecha: new Date().toLocaleDateString(),
+        tipo,
+        detalle
+    });
+
+    if(tipo.toLowerCase()==="medición"){
+        const nuevaAltura = prompt("Nueva altura (cm):");
+        if(nuevaAltura){
+            cactus.altura = parseFloat(nuevaAltura);
+        }
+    }
+
+    actualizar();
+}
+
+function eliminar(id){
+    cactusDB = cactusDB.filter(c=>c.id!==id);
+    actualizar();
+}
+
+function actualizarDashboard(){
+    totalCactus.textContent = cactusDB.length;
+
+    const promedio = cactusDB.length ?
+        (cactusDB.reduce((acc,c)=>acc+c.altura,0)/cactusDB.length).toFixed(2)
+        : 0;
+
+    promedioAltura.textContent = promedio;
+
+    let eventos = cactusDB.flatMap(c=>c.historial);
+    ultimoEvento.textContent = eventos.length ?
+        eventos[eventos.length-1].tipo :
+        "-";
+}
+
+function exportarJSON(){
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(cactusDB));
+    const a = document.createElement("a");
+    a.href = dataStr;
+    a.download = "cultivo_cactus.json";
+    a.click();
+}
+
+document.getElementById("filtro").addEventListener("input", render);
+
+render();
+actualizarDashboard();
+</script>
+
+</body>
+</html>
