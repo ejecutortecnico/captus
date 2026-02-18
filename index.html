@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Registro de Cultivo de Cactus</title>
+<title>Control Domo Cactus</title>
 
 <style>
 body{
     font-family: Arial, sans-serif;
-    background: linear-gradient(135deg,#1e3c72,#2a5298);
+    background: linear-gradient(135deg,#0f2027,#203a43,#2c5364);
     margin:0;
     padding:20px;
     color:white;
@@ -19,35 +19,32 @@ h1{
 }
 
 .container{
-    max-width:1000px;
+    max-width:1100px;
     margin:auto;
-    background: rgba(0,0,0,0.3);
-    padding:20px;
-    border-radius:10px;
 }
 
-form{
-    display:grid;
-    grid-template-columns: repeat(auto-fit,minmax(200px,1fr));
-    gap:15px;
-    margin-bottom:20px;
-}
-
-input, textarea, button{
-    padding:10px;
+select,input,textarea,button{
+    padding:8px;
     border-radius:5px;
     border:none;
+    margin:5px 0;
 }
 
 button{
     background:#00c853;
     color:white;
     cursor:pointer;
-    font-weight:bold;
 }
 
 button:hover{
     background:#009624;
+}
+
+.section{
+    background:rgba(0,0,0,0.3);
+    padding:15px;
+    margin-bottom:15px;
+    border-radius:10px;
 }
 
 table{
@@ -55,139 +52,173 @@ table{
     border-collapse: collapse;
     background:white;
     color:black;
+    margin-top:10px;
 }
 
-th, td{
-    padding:10px;
+th,td{
+    padding:8px;
     border:1px solid #ddd;
     text-align:center;
 }
 
 th{
-    background:#2a5298;
+    background:#2c5364;
     color:white;
-}
-
-.delete-btn{
-    background:#d50000;
-    color:white;
-    padding:5px 10px;
-    border:none;
-    border-radius:5px;
-    cursor:pointer;
-}
-
-.search{
-    margin-bottom:15px;
 }
 </style>
 </head>
 
 <body>
 
+<h1>🌵 Sistema de Control del Domo (50 Cavidades)</h1>
+
 <div class="container">
-<h1>🌵 Registro de Cultivo de Cactus</h1>
 
-<form id="registroForm">
-<input type="text" id="especie" placeholder="Especie" required>
-<input type="date" id="siembra" required>
-<input type="date" id="germinacion">
-<input type="number" id="semillas" placeholder="Semillas sembradas" required>
-<input type="number" id="germinadas" placeholder="Semillas germinadas" required>
-<textarea id="observaciones" placeholder="Observaciones"></textarea>
-<button type="submit">Guardar Registro</button>
-</form>
+<div class="section">
+<h3>Seleccionar Cavidad</h3>
+<select id="cavidadSelect"></select>
+</div>
 
-<input type="text" id="buscar" class="search" placeholder="Buscar por especie...">
+<div class="section">
+<h3>Registro de Siembra</h3>
+<input type="text" id="especie" placeholder="Especie">
+<input type="date" id="fechaSiembra">
+<input type="number" id="semillas" placeholder="Cantidad de semillas">
+<button onclick="guardarSiembra()">Guardar Siembra</button>
+</div>
 
-<table>
-<thead>
-<tr>
-<th>Especie</th>
-<th>Siembra</th>
-<th>Germinación</th>
-<th>% Germinación</th>
-<th>Observaciones</th>
-<th>Eliminar</th>
-</tr>
-</thead>
-<tbody id="tablaRegistros"></tbody>
-</table>
+<div class="section">
+<h3>Registro de Riego</h3>
+<input type="date" id="fechaRiego">
+<textarea id="obsRiego" placeholder="Observaciones del riego"></textarea>
+<button onclick="guardarRiego()">Guardar Riego</button>
+</div>
+
+<div class="section">
+<h3>Registro de Crecimiento</h3>
+<input type="date" id="fechaCrecimiento">
+<input type="number" id="tamano" placeholder="Tamaño en cm">
+<textarea id="obsCrecimiento" placeholder="Observaciones"></textarea>
+<button onclick="guardarCrecimiento()">Guardar Crecimiento</button>
+</div>
+
+<div class="section">
+<h3>Historial de la Cavidad</h3>
+<div id="infoCavidad"></div>
+<div id="historialRiego"></div>
+<div id="historialCrecimiento"></div>
+</div>
 
 </div>
 
 <script>
 
-let registros = JSON.parse(localStorage.getItem("cactusRegistros")) || [];
+let domo = JSON.parse(localStorage.getItem("domoCactus")) || {};
 
-const form = document.getElementById("registroForm");
-const tabla = document.getElementById("tablaRegistros");
-const buscarInput = document.getElementById("buscar");
+const select = document.getElementById("cavidadSelect");
 
-function guardarLocalStorage(){
-    localStorage.setItem("cactusRegistros", JSON.stringify(registros));
+// Crear opciones 1–50
+for(let i=1;i<=50;i++){
+    let option = document.createElement("option");
+    option.value = i;
+    option.textContent = "Cavidad " + i;
+    select.appendChild(option);
 }
 
-function calcularPorcentaje(total, germinadas){
-    return ((germinadas / total) * 100).toFixed(1) + "%";
+function guardarLocal(){
+    localStorage.setItem("domoCactus", JSON.stringify(domo));
 }
 
-function renderTabla(filtro=""){
-    tabla.innerHTML = "";
-    registros
-    .filter(r => r.especie.toLowerCase().includes(filtro.toLowerCase()))
-    .forEach((registro,index)=>{
-        let fila = `
-        <tr>
-            <td>${registro.especie}</td>
-            <td>${registro.siembra}</td>
-            <td>${registro.germinacion || "-"}</td>
-            <td>${registro.porcentaje}</td>
-            <td>${registro.observaciones}</td>
-            <td><button class="delete-btn" onclick="eliminarRegistro(${index})">X</button></td>
-        </tr>
+function obtenerCavidad(){
+    let id = select.value;
+    if(!domo[id]){
+        domo[id] = {
+            siembra:null,
+            riegos:[],
+            crecimiento:[]
+        };
+    }
+    return domo[id];
+}
+
+function guardarSiembra(){
+    let cav = obtenerCavidad();
+    cav.siembra = {
+        especie: document.getElementById("especie").value,
+        fecha: document.getElementById("fechaSiembra").value,
+        semillas: document.getElementById("semillas").value
+    };
+    guardarLocal();
+    mostrarHistorial();
+}
+
+function guardarRiego(){
+    let cav = obtenerCavidad();
+    cav.riegos.push({
+        fecha: document.getElementById("fechaRiego").value,
+        obs: document.getElementById("obsRiego").value
+    });
+    guardarLocal();
+    mostrarHistorial();
+}
+
+function guardarCrecimiento(){
+    let cav = obtenerCavidad();
+    cav.crecimiento.push({
+        fecha: document.getElementById("fechaCrecimiento").value,
+        tamano: document.getElementById("tamano").value,
+        obs: document.getElementById("obsCrecimiento").value
+    });
+    guardarLocal();
+    mostrarHistorial();
+}
+
+function mostrarHistorial(){
+    let cav = obtenerCavidad();
+
+    let info = "<h4>Siembra:</h4>";
+    if(cav.siembra){
+        info += `
+        Especie: ${cav.siembra.especie}<br>
+        Fecha: ${cav.siembra.fecha}<br>
+        Semillas: ${cav.siembra.semillas}
         `;
-        tabla.innerHTML += fila;
-    });
+    } else {
+        info += "Sin registro";
+    }
+
+    document.getElementById("infoCavidad").innerHTML = info;
+
+    let riegosHTML = "<h4>Riegos:</h4>";
+    if(cav.riegos.length>0){
+        riegosHTML += "<table><tr><th>Fecha</th><th>Observación</th></tr>";
+        cav.riegos.forEach(r=>{
+            riegosHTML += `<tr><td>${r.fecha}</td><td>${r.obs}</td></tr>`;
+        });
+        riegosHTML += "</table>";
+    } else {
+        riegosHTML += "Sin registros";
+    }
+
+    document.getElementById("historialRiego").innerHTML = riegosHTML;
+
+    let crecHTML = "<h4>Crecimiento:</h4>";
+    if(cav.crecimiento.length>0){
+        crecHTML += "<table><tr><th>Fecha</th><th>Tamaño (cm)</th><th>Observación</th></tr>";
+        cav.crecimiento.forEach(c=>{
+            crecHTML += `<tr><td>${c.fecha}</td><td>${c.tamano}</td><td>${c.obs}</td></tr>`;
+        });
+        crecHTML += "</table>";
+    } else {
+        crecHTML += "Sin registros";
+    }
+
+    document.getElementById("historialCrecimiento").innerHTML = crecHTML;
 }
 
-function eliminarRegistro(index){
-    registros.splice(index,1);
-    guardarLocalStorage();
-    renderTabla(buscarInput.value);
-}
+select.addEventListener("change", mostrarHistorial);
 
-form.addEventListener("submit", function(e){
-    e.preventDefault();
-
-    const especie = document.getElementById("especie").value;
-    const siembra = document.getElementById("siembra").value;
-    const germinacion = document.getElementById("germinacion").value;
-    const semillas = parseInt(document.getElementById("semillas").value);
-    const germinadas = parseInt(document.getElementById("germinadas").value);
-    const observaciones = document.getElementById("observaciones").value;
-
-    const porcentaje = calcularPorcentaje(semillas, germinadas);
-
-    registros.push({
-        especie,
-        siembra,
-        germinacion,
-        porcentaje,
-        observaciones
-    });
-
-    guardarLocalStorage();
-    renderTabla();
-
-    form.reset();
-});
-
-buscarInput.addEventListener("input", function(){
-    renderTabla(this.value);
-});
-
-renderTabla();
+mostrarHistorial();
 
 </script>
 
