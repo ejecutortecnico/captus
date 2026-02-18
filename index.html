@@ -3,252 +3,192 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🌵 Sistema Profesional de Cultivo de Cactus</title>
+<title>Registro de Cultivo de Cactus</title>
 
 <style>
 body{
     font-family: Arial, sans-serif;
+    background: linear-gradient(135deg,#1e3c72,#2a5298);
     margin:0;
-    background:linear-gradient(135deg,#1b4332,#2d6a4f);
+    padding:20px;
     color:white;
 }
-header{
+
+h1{
     text-align:center;
-    padding:20px;
-    background:#081c15;
 }
+
 .container{
-    max-width:1100px;
+    max-width:1000px;
     margin:auto;
+    background: rgba(0,0,0,0.3);
     padding:20px;
-}
-input, select, textarea{
-    width:100%;
-    padding:8px;
-    margin:5px 0;
-    border-radius:6px;
-    border:none;
-}
-button{
-    padding:8px 15px;
-    border:none;
-    border-radius:6px;
-    background:#95d5b2;
-    cursor:pointer;
-    margin:5px 0;
-}
-button:hover{
-    background:#74c69d;
-}
-.card{
-    background:rgba(255,255,255,0.1);
-    padding:15px;
-    margin:15px 0;
     border-radius:10px;
 }
-.grid{
+
+form{
     display:grid;
-    grid-template-columns:1fr 1fr;
+    grid-template-columns: repeat(auto-fit,minmax(200px,1fr));
     gap:15px;
-}
-img{
-    max-width:120px;
-    border-radius:8px;
-    margin-top:10px;
-}
-.dashboard{
-    display:flex;
-    justify-content:space-around;
-    flex-wrap:wrap;
     margin-bottom:20px;
 }
-.stat{
-    background:rgba(255,255,255,0.2);
-    padding:15px;
-    border-radius:10px;
-    margin:5px;
+
+input, textarea, button{
+    padding:10px;
+    border-radius:5px;
+    border:none;
 }
-small{color:#ccc}
+
+button{
+    background:#00c853;
+    color:white;
+    cursor:pointer;
+    font-weight:bold;
+}
+
+button:hover{
+    background:#009624;
+}
+
+table{
+    width:100%;
+    border-collapse: collapse;
+    background:white;
+    color:black;
+}
+
+th, td{
+    padding:10px;
+    border:1px solid #ddd;
+    text-align:center;
+}
+
+th{
+    background:#2a5298;
+    color:white;
+}
+
+.delete-btn{
+    background:#d50000;
+    color:white;
+    padding:5px 10px;
+    border:none;
+    border-radius:5px;
+    cursor:pointer;
+}
+
+.search{
+    margin-bottom:15px;
+}
 </style>
 </head>
 
 <body>
 
-<header>
-    <h1>🌵 Gestión Profesional de Cultivo de Cactus</h1>
-</header>
-
 <div class="container">
+<h1>🌵 Registro de Cultivo de Cactus</h1>
 
-<!-- DASHBOARD -->
-<div class="dashboard">
-    <div class="stat">Total Cactus: <span id="totalCactus">0</span></div>
-    <div class="stat">Promedio Altura: <span id="promedioAltura">0</span> cm</div>
-    <div class="stat">Último Evento: <span id="ultimoEvento">-</span></div>
-</div>
-
-<!-- FORMULARIO -->
-<div class="card">
-<h2>Registrar Nuevo Cactus</h2>
-<form id="formCactus">
-<div class="grid">
-<input type="text" id="nombre" placeholder="Nombre" required>
-<input type="text" id="especie" placeholder="Especie">
-<input type="date" id="fechaSiembra" required>
-<input type="number" id="altura" placeholder="Altura inicial (cm)">
-<select id="estado">
-<option value="Semilla">Semilla</option>
-<option value="Crecimiento">Crecimiento</option>
-<option value="Adulto">Adulto</option>
-<option value="Floración">Floración</option>
-</select>
-<input type="file" id="foto">
-</div>
+<form id="registroForm">
+<input type="text" id="especie" placeholder="Especie" required>
+<input type="date" id="siembra" required>
+<input type="date" id="germinacion">
+<input type="number" id="semillas" placeholder="Semillas sembradas" required>
+<input type="number" id="germinadas" placeholder="Semillas germinadas" required>
 <textarea id="observaciones" placeholder="Observaciones"></textarea>
-<button type="submit">Guardar Cactus</button>
+<button type="submit">Guardar Registro</button>
 </form>
-</div>
 
-<!-- FILTRO -->
-<div class="card">
-<h3>Filtrar por especie</h3>
-<input type="text" id="filtro" placeholder="Buscar especie...">
-</div>
+<input type="text" id="buscar" class="search" placeholder="Buscar por especie...">
 
-<!-- LISTADO -->
-<div id="lista"></div>
-
-<button onclick="exportarJSON()">Exportar Datos</button>
+<table>
+<thead>
+<tr>
+<th>Especie</th>
+<th>Siembra</th>
+<th>Germinación</th>
+<th>% Germinación</th>
+<th>Observaciones</th>
+<th>Eliminar</th>
+</tr>
+</thead>
+<tbody id="tablaRegistros"></tbody>
+</table>
 
 </div>
 
 <script>
-let cactusDB = JSON.parse(localStorage.getItem("cactusPro")) || [];
 
-document.getElementById("formCactus").addEventListener("submit", function(e){
+let registros = JSON.parse(localStorage.getItem("cactusRegistros")) || [];
+
+const form = document.getElementById("registroForm");
+const tabla = document.getElementById("tablaRegistros");
+const buscarInput = document.getElementById("buscar");
+
+function guardarLocalStorage(){
+    localStorage.setItem("cactusRegistros", JSON.stringify(registros));
+}
+
+function calcularPorcentaje(total, germinadas){
+    return ((germinadas / total) * 100).toFixed(1) + "%";
+}
+
+function renderTabla(filtro=""){
+    tabla.innerHTML = "";
+    registros
+    .filter(r => r.especie.toLowerCase().includes(filtro.toLowerCase()))
+    .forEach((registro,index)=>{
+        let fila = `
+        <tr>
+            <td>${registro.especie}</td>
+            <td>${registro.siembra}</td>
+            <td>${registro.germinacion || "-"}</td>
+            <td>${registro.porcentaje}</td>
+            <td>${registro.observaciones}</td>
+            <td><button class="delete-btn" onclick="eliminarRegistro(${index})">X</button></td>
+        </tr>
+        `;
+        tabla.innerHTML += fila;
+    });
+}
+
+function eliminarRegistro(index){
+    registros.splice(index,1);
+    guardarLocalStorage();
+    renderTabla(buscarInput.value);
+}
+
+form.addEventListener("submit", function(e){
     e.preventDefault();
 
-    const reader = new FileReader();
-    const file = document.getElementById("foto").files[0];
+    const especie = document.getElementById("especie").value;
+    const siembra = document.getElementById("siembra").value;
+    const germinacion = document.getElementById("germinacion").value;
+    const semillas = parseInt(document.getElementById("semillas").value);
+    const germinadas = parseInt(document.getElementById("germinadas").value);
+    const observaciones = document.getElementById("observaciones").value;
 
-    if(file){
-        reader.onload = function(){
-            guardarCactus(reader.result);
-        }
-        reader.readAsDataURL(file);
-    } else {
-        guardarCactus(null);
-    }
+    const porcentaje = calcularPorcentaje(semillas, germinadas);
+
+    registros.push({
+        especie,
+        siembra,
+        germinacion,
+        porcentaje,
+        observaciones
+    });
+
+    guardarLocalStorage();
+    renderTabla();
+
+    form.reset();
 });
 
-function guardarCactus(imagen){
-    const cactus = {
-        id: Date.now(),
-        nombre: nombre.value,
-        especie: especie.value,
-        fechaSiembra: fechaSiembra.value,
-        altura: parseFloat(altura.value) || 0,
-        estado: estado.value,
-        observaciones: observaciones.value,
-        imagen: imagen,
-        historial:[]
-    };
+buscarInput.addEventListener("input", function(){
+    renderTabla(this.value);
+});
 
-    cactusDB.push(cactus);
-    actualizar();
-    formCactus.reset();
-}
+renderTabla();
 
-function actualizar(){
-    localStorage.setItem("cactusPro", JSON.stringify(cactusDB));
-    render();
-    actualizarDashboard();
-}
-
-function render(){
-    const filtro = document.getElementById("filtro").value.toLowerCase();
-    lista.innerHTML="";
-
-    cactusDB
-    .filter(c=>c.especie.toLowerCase().includes(filtro))
-    .forEach(cactus=>{
-        lista.innerHTML += `
-        <div class="card">
-            <h3>${cactus.nombre}</h3>
-            <p><strong>Especie:</strong> ${cactus.especie}</p>
-            <p><strong>Altura:</strong> ${cactus.altura} cm</p>
-            <p><strong>Estado:</strong> ${cactus.estado}</p>
-            <p><strong>Siembra:</strong> ${cactus.fechaSiembra}</p>
-            <small>${cactus.observaciones}</small>
-            ${cactus.imagen ? `<br><img src="${cactus.imagen}">` : ""}
-            <br>
-            <button onclick="agregarEvento(${cactus.id})">Agregar Evento</button>
-            <button onclick="eliminar(${cactus.id})">Eliminar</button>
-            <div>
-                <h4>Historial</h4>
-                ${cactus.historial.map(h=>`<p>📅 ${h.fecha} - ${h.tipo} - ${h.detalle}</p>`).join("")}
-            </div>
-        </div>
-        `;
-    });
-}
-
-function agregarEvento(id){
-    const tipo = prompt("Tipo de evento (Riego, Fertilización, Plaga, Trasplante, Medición)");
-    if(!tipo) return;
-    const detalle = prompt("Detalle del evento:");
-    if(!detalle) return;
-
-    const cactus = cactusDB.find(c=>c.id===id);
-
-    cactus.historial.push({
-        fecha: new Date().toLocaleDateString(),
-        tipo,
-        detalle
-    });
-
-    if(tipo.toLowerCase()==="medición"){
-        const nuevaAltura = prompt("Nueva altura (cm):");
-        if(nuevaAltura){
-            cactus.altura = parseFloat(nuevaAltura);
-        }
-    }
-
-    actualizar();
-}
-
-function eliminar(id){
-    cactusDB = cactusDB.filter(c=>c.id!==id);
-    actualizar();
-}
-
-function actualizarDashboard(){
-    totalCactus.textContent = cactusDB.length;
-
-    const promedio = cactusDB.length ?
-        (cactusDB.reduce((acc,c)=>acc+c.altura,0)/cactusDB.length).toFixed(2)
-        : 0;
-
-    promedioAltura.textContent = promedio;
-
-    let eventos = cactusDB.flatMap(c=>c.historial);
-    ultimoEvento.textContent = eventos.length ?
-        eventos[eventos.length-1].tipo :
-        "-";
-}
-
-function exportarJSON(){
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(cactusDB));
-    const a = document.createElement("a");
-    a.href = dataStr;
-    a.download = "cultivo_cactus.json";
-    a.click();
-}
-
-document.getElementById("filtro").addEventListener("input", render);
-
-render();
-actualizarDashboard();
 </script>
 
 </body>
